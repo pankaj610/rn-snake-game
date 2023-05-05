@@ -5,113 +5,138 @@
  * @format
  */
 
-import React from 'react';
-import type {PropsWithChildren} from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+import React, {useRef, useState} from 'react';
+import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {GameEngine} from 'react-native-game-engine';
+import {Constants} from './src/Constants';
+import SnakeGameSystem from './src/SnakeGameSystem';
+import useGameEngine, {getEntities} from './src/useGameEngine';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+export const randomBetween = (min: number, max: number) => {
+  return Math.floor(Math.random() * (max - min + 1) + min);
+};
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+function App(): JSX.Element {
+  const gameEngineRef = useRef<any>(null);
+  const [running, setRunning] = useState(true);
+  const [score, setScore] = useState(0);
 
-function Section({children, title}: SectionProps): JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+  const {entities} = useGameEngine({gameEngineRef});
+  const boardSize = Constants.CELL_SIZE * Constants.GRID_SIZE;
+
+  const onEvent = (e: any) => {
+    if (e.type === 'game-over') {
+      setRunning(false);
+    }
+    if (e.type === 'eat-food') {
+      setScore(s => s + 1);
+    }
+  };
+
+  const resetGame = () => {
+    gameEngineRef.current.swap(getEntities());
+    setRunning(true);
+    setScore(0);
+  };
+
   return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
+    <View style={styles.container}>
+      <Text style={styles.score}>Score: {score}</Text>
+      {!!entities && (
+        <GameEngine
+          ref={gameEngineRef}
+          style={[styles.board, {width: boardSize, height: boardSize}]}
+          entities={entities}
+          systems={[SnakeGameSystem]}
+          onEvent={onEvent}
+          running={running}>
+          {!running && (
+            <TouchableOpacity onPress={resetGame}>
+              <View style={styles.gameover}>
+                <Text>Game Over</Text>
+                <Text>Your Score: {score}</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        </GameEngine>
+      )}
+      <View style={styles.controls}>
+        <View style={styles.controlRow}>
+          <TouchableOpacity
+            onPress={() => {
+              gameEngineRef.current?.dispatch({type: 'move-up'});
+            }}>
+            <View style={styles.control} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.controlRow}>
+          <TouchableOpacity
+            onPress={() => {
+              gameEngineRef.current?.dispatch({type: 'move-left'});
+            }}>
+            <View style={styles.control} />
+          </TouchableOpacity>
+
+          <View style={[styles.control, {backgroundColor: 'black'}]} />
+
+          <TouchableOpacity
+            onPress={() => {
+              gameEngineRef.current?.dispatch({type: 'move-right'});
+            }}>
+            <View style={styles.control} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.controlRow}>
+          <TouchableOpacity
+            onPress={() => {
+              gameEngineRef.current?.dispatch({type: 'move-down'});
+            }}>
+            <View style={styles.control} />
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 }
 
-function App(): JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
-
-  return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  container: {
+    flex: 1,
+    backgroundColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
+  board: {
+    flex: 0,
+    backgroundColor: '#ffffff',
   },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
+  controls: {
+    width: 300,
+    height: 300,
+    flexDirection: 'column',
+    marginTop: 30,
   },
-  highlight: {
-    fontWeight: '700',
+  controlRow: {
+    width: 300,
+    height: 100,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  control: {
+    height: 100,
+    width: 100,
+    backgroundColor: 'blue',
+  },
+  gameover: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100%',
+    width: '100%',
+  },
+  score: {
+    color: 'white',
   },
 });
 
